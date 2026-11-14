@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>영흥 게임 아카이브</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #181b21;
+      --surface-hover: #22262f;
+      --primary: #f4f4f5;
+      --secondary: #9ca3af;
+      --accent: #ff5a36;
+      --success: #22c55e;
+      --border: #2b303b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--primary);
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 44px 20px 32px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .auth-bar {
+      max-width: 1440px;
+      margin: 0 auto 16px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      color: var(--primary);
+    }
+
+    .user-chip span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .btn-auth {
+      background: var(--surface);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-auth:hover {
+      border-color: var(--secondary);
+      background: var(--surface-hover);
+    }
+
+    h1 {
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .desc {
+      color: var(--secondary);
+      font-size: 1.05rem;
+    }
+
+    .controls {
+      max-width: 1440px;
+      margin: 28px auto;
+      padding: 0 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--secondary);
+      padding: 6px 13px;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: var(--bg);
+      font-weight: 700;
+    }
+
+    .filter-btn:hover:not(.active) {
+      color: var(--primary);
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"], input[type="email"], input[type="password"], select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--secondary);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--bg);
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* 반응형 카드 그리드: PC 6열, 태블릿 4열, 모바일 2열 */
+    .grid-container {
+      max-width: 1440px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 18px;
+    }
+
+    @media (max-width: 1100px) {
+      .grid-container { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .grid-container { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 90px 20px;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      color: var(--secondary);
+    }
+
+    .empty-state h3 {
+      color: var(--primary);
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--secondary);
+    }
+
+    .edit-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 10;
+      background: rgba(15, 17, 21, 0.85);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .edit-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .played-tag {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 10;
+      background: rgba(34, 197, 94, 0.92);
+      color: #052e16;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+
+    .thumb-wrapper {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: #111318;
+    }
+
+    .thumb-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .card:hover .thumb-wrapper img {
+      transform: scale(1.05);
+    }
+
+    .card-content {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--secondary);
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 2.55rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: auto;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 0.75rem;
+      color: #d1d5db;
+      width: fit-content;
+    }
+
+    .badge.save-badge {
+      background: rgba(34, 197, 94, 0.14);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    /* 모달 공통 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      backdrop-filter: blur(4px);
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      padding: 26px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h2 {
+      margin-bottom: 16px;
+      font-size: 1.35rem;
+    }
+
+    /* 인앱 플레이어 모달 */
+    #player-modal .modal-content {
+      max-width: 1200px;
+      width: 96%;
+      height: 90vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .player-title-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .save-status-pill {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--secondary);
+    }
+
+    .save-status-pill.saved {
+      background: rgba(34, 197, 94, 0.16);
+      color: #86efac;
+    }
+
+    .save-status-pill.warn {
+      background: rgba(245, 158, 11, 0.16);
+      color: #fcd34d;
+      cursor: pointer;
+    }
+
+    .player-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .player-controls button {
+      background: var(--border);
+      color: white;
+      border: none;
+      padding: 8px 13px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .player-controls button:hover { background: #3f4654; }
+    .close-btn { background: #dc2626 !important; }
+    .close-btn:hover { background: #b91c1c !important; }
+
+    .iframe-wrap {
+      position: relative;
+      flex-grow: 1;
+      width: 100%;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .player-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b0d10;
+      color: var(--secondary);
+      font-size: 1.05rem;
+    }
+
+    /* 폼 스타일 */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+      gap: 6px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      color: var(--secondary);
+      font-weight: 600;
+    }
+
+    .file-box {
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .thumb-preview {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      object-fit: cover;
+      margin-top: 6px;
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 22px;
+      gap: 10px;
+    }
+
+    .modal-actions-right {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="auth-bar" id="auth-bar"></div>
+    <h1>🎮 영흥 게임 아카이브</h1>
+    <p class="desc">우리 학교 학생들이 직접 만든 창작 웹 게임 전시관</p>
+  </header>
+
+  <div class="controls">
+    <div class="filters">
+      <div class="filter-group">
+        <button class="filter-btn active" data-player="all">인원 전체</button>
+        <button class="filter-btn" data-player="1인용">1인용</button>
+        <button class="filter-btn" data-player="다인용">다인용</button>
+      </div>
+      <div class="filter-group">
+        <button class="filter-btn active" data-time="all">시간 전체</button>
+        <button class="filter-btn" data-time="short">5분 미만 킬링타임</button>
+        <button class="filter-btn" data-time="long">5분 이상</button>
+      </div>
+      <div class="filter-group" id="my-games-filter-wrap" style="display:none;">
+        <button class="filter-btn" id="btn-my-games" onclick="toggleMyGamesFilter()">🕒 내가 플레이한 게임</button>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="게임 제목, 제작자 검색...">
+      <button class="btn-primary" onclick="openFormModal()">+ 새 게임 추가하기</button>
+    </div>
+  </div>
+
+  <div class="grid-container" id="grid">
+    <div class="empty-state">게임 목록을 불러오는 중입니다...</div>
+  </div>
+
+  <!-- 이메일 로그인 모달 -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <h2>📧 이메일 로그인</h2>
+      <p style="margin-bottom: 16px; color: var(--secondary); font-size: 0.9rem;">
+        이메일 주소를 입력하면 어떤 게임을 어디까지 플레이했는지 자동으로 저장되고 이어서 할 수 있습니다.
+      </p>
+      <div class="form-group">
+        <label>이메일 주소</label>
+        <input type="email" id="login-email-input" placeholder="예: student@school.hs.kr"
+               onkeydown="if(event.key==='Enter') submitLogin()">
+      </div>
+      <div class="modal-actions">
+        <div class="modal-actions-right">
+          <button type="button" class="btn-cancel" onclick="closeLoginModal()">닫기</button>
+          <button type="button" class="btn-primary" id="btn-login-submit" onclick="submitLogin()">로그인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 인앱 플레이어 모달 -->
+  <div class="modal-overlay" id="player-modal">
+    <div class="modal-content">
+      <div class="player-header">
+        <div class="player-title-area">
+          <h2 id="player-title" style="margin:0;">게임 제목</h2>
+          <span class="save-status-pill" id="save-status-pill">상태 확인 중</span>
+        </div>
+        <div class="player-controls">
+          <button onclick="reloadGame()">🔄 다시하기</button>
+          <button onclick="fullscreenGame()">🔲 전체화면</button>
+          <button class="close-btn" onclick="closePlayer()">❌ 닫기</button>
+        </div>
+      </div>
+      <div class="iframe-wrap">
+        <div class="player-loading" id="player-loading">게임을 불러오는 중입니다...</div>
+        <iframe id="game-frame" allow="fullscreen; pointer-lock; autoplay"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- 추가 / 수정 폼 모달 -->
+  <div class="modal-overlay" id="form-modal">
+    <div class="modal-content">
+      <h2 id="form-title">새 게임 추가</h2>
+      <input type="hidden" id="form-id">
+      <input type="hidden" id="verified-pwd">
+
+      <div class="form-group">
+        <label>게임 제목 *</label>
+        <input type="text" id="f-title" placeholder="예: 스노 크러시">
+      </div>
+
+      <div class="form-group">
+        <label>간단한 설명 (2줄 이내) *</label>
+        <input type="text" id="f-desc" placeholder="게임에 대한 간단한 소개를 적어주세요.">
+      </div>
+
+      <div class="form-group">
+        <label>게임 HTML 파일 업로드 *</label>
+        <div class="file-box">
+          <input type="file" id="f-html-file" accept=".html,.htm" onchange="handleHtmlFile(event)">
+          <div id="html-file-status" style="margin-top:4px; color:#9ca3af;">.html 파일을 선택해주세요</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>썸네일 이미지 (파일 업로드 또는 이미지 링크)</label>
+        <div class="file-box">
+          <input type="file" id="f-thumb-file" accept="image/*" onchange="handleThumbFile(event)">
+          <input type="text" id="f-thumb-url" placeholder="또는 이미지 URL 직접 입력" style="width:100%; margin-top:8px;" oninput="previewThumbUrl(this.value)">
+          <img id="thumb-preview" class="thumb-preview" alt="미리보기">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>한 판 플레이 시간 *</label>
+          <select id="f-time">
+            <option value="⏱️ 3분 내외 (5분 미만)">⏱️ 3분 내외 (5분 미만)</option>
+            <option value="⏱️ 5분 미만 킬링타임">⏱️ 5분 미만 킬링타임</option>
+            <option value="⏱️ 5~10분 (5분 이상)">⏱️ 5~10분 (5분 이상)</option>
+            <option value="⏱️ 10~15분 (5분 이상)">⏱️ 10~15분 (5분 이상)</option>
+            <option value="⏱️ 15분 이상">⏱️ 15분 이상</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>플레이 인원 *</label>
+          <select id="f-players">
+            <option value="👤 1인용">👤 1인용</option>
+            <option value="👥 2인용 (다인용)">👥 2인용 (다인용)</option>
+            <option value="👥 2~4인용 (다인용)">👥 2~4인용 (다인용)</option>
+            <option value="👥 다인용">👥 다인용</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>제작자 이름 *</label>
+          <input type="text" id="f-creator" placeholder="예: 홍길동">
+        </div>
+
+        <div class="form-group">
+          <label id="pwd-label">게시물 비밀번호 *</label>
+          <input type="password" id="f-password" placeholder="수정 시 필요">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-danger" id="btn-delete" style="display:none;" onclick="handleDelete()">삭제하기</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn-cancel" onclick="closeFormModal()">취소</button>
+          <button type="button" class="btn-primary" id="btn-save" onclick="saveGame()">저장하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 수정 전 비밀번호 확인 모달 -->
+  <div class="modal-overlay" id="pwd-modal">
+    <div class="modal-content" style="max-width: 360px;">
+      <h2>🔒 비밀번호 확인</h2>
+      <p style="margin-bottom: 14px; color: var(--secondary); font-size: 0.9rem;">
+        이 게임을 수정하려면 등록 시 설정한 비밀번호를 입력하세요.
+      </p>
+      <input type="hidden" id="pwd-target-id">
+      <input type="password" id="pwd-input" placeholder="비밀번호 입력" style="width: 100%;"
+             onkeydown="if(event.key==='Enter') checkPassword()">
+
+      <div class="modal-actions">
+        <div class="modal-actions-right">
+          <button type="button" class="btn-cancel" onclick="closePwdModal()">취소</button>
+          <button type="button" class="btn-primary" id="btn-pwd-check" onclick="checkPassword()">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ★ [필수 설정] 아래 따옴표 안에 구글 앱스 스크립트 웹 앱 URL을 붙여넣으세요!
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwheDLjDtqFggK_GxASeWEb5xgWEOXjDJ36rf_35mPSzDYbFXQIKT6HB6kV10FFbTgF/exec';
+
+    const EMAIL_STORAGE_KEY = 'yh_game_archive_email';
+
+    let gamesData = [];
+    let userEmail = localStorage.getItem(EMAIL_STORAGE_KEY) || '';
+    let userSaves = {};
+
+    let currentPlayerFilter = 'all';
+    let currentTimeFilter = 'all';
+    let onlyMyGames = false;
+    let searchQuery = '';
+
+    let uploadedHtmlContent = '';
+    let uploadedThumbData = '';
+    let activeGame = null;
+    let activeGameRawHtml = '';
+    let latestSavePayload = null;
+    let saveSyncTimer = null;
+
+    const DEFAULT_THUMB = "data:image/svg+xml;utf8," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+        <rect width="400" height="400" fill="#1f242d"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-family="sans-serif" font-size="24" font-weight="bold">NO THUMBNAIL</text>
+      </svg>`
+    );
+
+    // 백엔드 API 호출 공통 함수
+    async function callApi(action, params = {}) {
+      if (!API_URL || !API_URL.startsWith('https://script.google.com/')) {
+        throw new Error('API_URL이 올바르게 설정되지 않았습니다.');
+      }
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action, ...params })
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.error || '서버 처리 중 오류가 발생했습니다.');
+      }
+      return json.data;
+    }
+
+    // 1. 로그인 상태 UI 렌더링
+    function renderAuthBar() {
+      const bar = document.getElementById('auth-bar');
+      const myFilterWrap = document.getElementById('my-games-filter-wrap');
+
+      if (userEmail) {
+        bar.innerHTML = `
+          <div class="user-chip">
+            <span class="dot"></span>
+            <span>${escapeHtml(userEmail)}</span>
+          </div>
+          <button class="btn-auth" onclick="logoutUser()">로그아웃</button>
+        `;
+        myFilterWrap.style.display = 'flex';
+      } else {
+        bar.innerHTML = `
+          <button class="btn-auth" onclick="openLoginModal()">📧 이메일로 로그인 (진행도 저장)</button>
+        `;
+        myFilterWrap.style.display = 'none';
+        onlyMyGames = false;
+        document.getElementById('btn-my-games').classList.remove('active');
+      }
+    }
+
+    function openLoginModal() {
+      document.getElementById('login-email-input').value = userEmail || '';
+      document.getElementById('login-modal').classList.add('active');
+      setTimeout(() => document.getElementById('login-email-input').focus(), 100);
+    }
+
+    function closeLoginModal() {
+      document.getElementById('login-modal').classList.remove('active');
+    }
+
+    async function submitLogin() {
+      const input = document.getElementById('login-email-input').value.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(input)) {
+        alert('올바른 이메일 주소를 입력해주세요. (예: student@school.hs.kr)');
+        return;
+      }
+
+      const btn = document.getElementById('btn-login-submit');
+      btn.disabled = true;
+      btn.innerText = '불러오는 중...';
+
+      try {
+        const saves = await callApi('getUserSaves', { email: input });
+        userEmail = input;
+        localStorage.setItem(EMAIL_STORAGE_KEY, userEmail);
+        userSaves = saves || {};
+        renderAuthBar();
+        closeLoginModal();
+        renderGames();
+
+        if (activeGame) {
+          updatePlayerSavePill('saved', `☁️ ${userEmail}에 자동 저장됨`);
+          syncProgressToServer(latestSavePayload || {}, true);
+        }
+      } catch (err) {
+        alert('로그인 오류: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '로그인';
+      }
+    }
+
+    function logoutUser() {
+      userEmail = '';
+      userSaves = {};
+      localStorage.removeItem(EMAIL_STORAGE_KEY);
+      renderAuthBar();
+      renderGames();
+    }
+
+    function toggleMyGamesFilter() {
+      onlyMyGames = !onlyMyGames;
+      document.getElementById('btn-my-games').classList.toggle('active', onlyMyGames);
+      renderGames();
+    }
+
+    // 2. 초기 데이터 로드
+    async function initApp() {
+      renderAuthBar();
+      try {
+        const [games, saves] = await Promise.all([
+          callApi('getGames'),
+          userEmail ? callApi('getUserSaves', { email: userEmail }) : Promise.resolve({})
+        ]);
+        gamesData = games || [];
+        userSaves = saves || {};
+        renderGames();
+      } catch (err) {
+        document.getElementById('grid').innerHTML =
+          `<div class="empty-state"><h3>데이터를 불러오지 못했습니다</h3><p>${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    // 3. 카드 그리드 렌더링
+    function renderGames() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      if (gamesData.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>아직 등록된 게임이 없습니다</h3>
+            <p>우측 상단의 <b>[+ 새 게임 추가하기]</b> 버튼을 눌러 첫 번째 게임을 전시해보세요!</p>
+          </div>`;
+        return;
+      }
+
+      const filtered = gamesData.filter(g => {
+        const q = searchQuery.toLowerCase();
+        const matchSearch = g.title.toLowerCase().includes(q) ||
+                            g.description.toLowerCase().includes(q) ||
+                            g.creator.toLowerCase().includes(q);
+
+        let matchPlayer = true;
+        if (currentPlayerFilter === '1인용') matchPlayer = g.players.includes('1인용');
+        if (currentPlayerFilter === '다인용') matchPlayer = g.players.includes('다인용') || g.players.includes('2');
+
+        let matchTime = true;
+        if (currentTimeFilter === 'short') matchTime = g.playTime.includes('미만');
+        if (currentTimeFilter === 'long') matchTime = g.playTime.includes('이상');
+
+        let matchMine = true;
+        if (onlyMyGames && userEmail) {
+          matchMine = Boolean(userSaves[g.id]);
+        }
+
+        return matchSearch && matchPlayer && matchTime && matchMine;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>조건에 맞는 게임이 없습니다</h3>
+            <p>검색어나 필터 조건을 변경해보세요.</p>
+          </div>`;
+        return;
+      }
+
+      filtered.forEach(game => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.onclick = (e) => {
+          if (!e.target.classList.contains('edit-btn')) openPlayer(game);
+        };
+
+        const thumbSrc = game.thumbnail || DEFAULT_THUMB;
+        const badgeTime = game.playTime.replace(/\s*\(.*?\)/g, '');
+        const badgePlayers = game.players.replace(/\s*\(.*?\)/g, '');
+        const saveInfo = userEmail ? userSaves[game.id] : null;
+        const hasSaveData = saveInfo && saveInfo.saveData && Object.keys(saveInfo.saveData).length > 0;
+
+        card.innerHTML = `
+          ${saveInfo ? `<span class="played-tag">${hasSaveData ? '💾 이어하기' : '▶ 플레이함'}</span>` : ''}
+          <button class="edit-btn" onclick="openPwdModal('${game.id}', event)">✏️ 수정</button>
+          <div class="thumb-wrapper">
+            <img src="${thumbSrc}" alt="${escapeHtml(game.title)}" onerror="this.src='${DEFAULT_THUMB}'">
+          </div>
+          <div class="card-content">
+            <div class="card-title">${escapeHtml(game.title)}</div>
+            <div class="card-desc">${escapeHtml(game.description)}</div>
+            <div class="badges">
+              <span class="badge">${escapeHtml(badgeTime)}</span>
+              <span class="badge">${escapeHtml(badgePlayers)}</span>
+              <span class="badge">✍️ ${escapeHtml(game.creator)}</span>
+              ${saveInfo ? `<span class="badge save-badge">🕒 ${saveInfo.playCount}회 플레이 (${saveInfo.lastPlayed.slice(5)})</span>` : ''}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    // 4. 필터 및 검색 이벤트
+    document.querySelectorAll('.filter-btn[data-player], .filter-btn[data-time]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (e.target.dataset.player) {
+          document.querySelectorAll('[data-player]').forEach(b => b.classList.remove('active'));
+          currentPlayerFilter = e.target.dataset.player;
+        }
+        if (e.target.dataset.time) {
+          document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
+          currentTimeFilter = e.target.dataset.time;
+        }
+        e.target.classList.add('active');
+        renderGames();
+      });
+    });
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderGames();
+    });
+
+    // 5. 게임 내부 localStorage 자동 클라우드 동기화 스크립트 주입
+    function buildInjectedGameHtml(rawHtml, initialSaveObj) {
+      const safeJson = JSON.stringify(initialSaveObj || {}).replace(/<\/script>/gi, '<\\/script>');
+      const hookScript = `
+<script>
+(function() {
+  const memStore = Object.assign({}, ${safeJson});
+  let syncTimer = null;
+  function notifyParent() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function() {
+      try {
+        window.parent.postMessage({ type: 'ARCHIVE_GAME_SAVE', saveData: Object.assign({}, memStore) }, '*');
+      } catch (e) {}
+    }, 600);
+  }
+  try {
+    const origGet = Storage.prototype.getItem;
+    const origSet = Storage.prototype.setItem;
+    const origRemove = Storage.prototype.removeItem;
+    const origClear = Storage.prototype.clear;
+
+    Storage.prototype.getItem = function(k) {
+      if (this === window.localStorage) {
+        return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null;
+      }
+      return origGet.apply(this, arguments);
+    };
+    Storage.prototype.setItem = function(k, v) {
+      if (this === window.localStorage) {
+        memStore[String(k)] = String(v);
+        notifyParent();
+        return;
+      }
+      return origSet.apply(this, arguments);
+    };
+    Storage.prototype.removeItem = function(k) {
+      if (this === window.localStorage) {
+        delete memStore[String(k)];
+        notifyParent();
+        return;
+      }
+      return origRemove.apply(this, arguments);
+    };
+    Storage.prototype.clear = function() {
+      if (this === window.localStorage) {
+        for (const k in memStore) delete memStore[k];
+        notifyParent();
+        return;
+      }
+      return origClear.apply(this, arguments);
+    };
+  } catch (err) {}
+})();
+<\/script>`;
+
+      if (/<head[^>]*>/i.test(rawHtml)) {
+        return rawHtml.replace(/<head[^>]*>/i, (match) => match + hookScript);
+      }
+      return hookScript + rawHtml;
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data || event.data.type !== 'ARCHIVE_GAME_SAVE' || !activeGame) return;
+      latestSavePayload = event.data.saveData;
+
+      if (!userEmail) return;
+
+      updatePlayerSavePill('saving', '⏳ 진행도 저장 중...');
+      clearTimeout(saveSyncTimer);
+      saveSyncTimer = setTimeout(() => {
+        syncProgressToServer(latestSavePayload, false);
+      }, 1000);
+    });
+
+    async function syncProgressToServer(saveObj, isNewSession) {
+      if (!userEmail || !activeGame) return;
+      const gameId = activeGame.id;
+      const jsonStr = saveObj ? JSON.stringify(saveObj) : null;
+
+      try {
+        const res = await callApi('saveUserProgress', {
+          email: userEmail,
+          gameId,
+          saveDataJson: jsonStr,
+          isNewSession
+        });
+        if (res && res.success) {
+          if (!userSaves[gameId]) userSaves[gameId] = { playCount: 0, lastPlayed: '', saveData: {} };
+          userSaves[gameId].playCount = res.playCount;
+          userSaves[gameId].lastPlayed = res.lastPlayed;
+          if (saveObj) userSaves[gameId].saveData = saveObj;
+
+          if (activeGame && activeGame.id === gameId) {
+            updatePlayerSavePill('saved', `☁️ ${userEmail}에 저장됨`);
+          }
+          renderGames();
+        }
+      } catch (e) {
+        console.error('진행도 저장 오류:', e);
+      }
+    }
+
+    function updatePlayerSavePill(type, text) {
+      const pill = document.getElementById('save-status-pill');
+      pill.className = 'save-status-pill ' + (type === 'saved' ? 'saved' : type === 'warn' ? 'warn' : '');
+      pill.innerText = text;
+      pill.onclick = type === 'warn' ? openLoginModal : null;
+    }
+
+    // 6. 인앱 플레이어 실행
+    async function openPlayer(game) {
+      activeGame = game;
+      latestSavePayload = (userEmail && userSaves[game.id]) ? Object.assign({}, userSaves[game.id].saveData) : {};
+
+      const frame = document.getElementById('game-frame');
+      const loading = document.getElementById('player-loading');
+
+      document.getElementById('player-title').innerText = game.title;
+      if (userEmail) {
+        updatePlayerSavePill('saved', `☁️ ${userEmail}에 자동 저장됨`);
+      } else {
+        updatePlayerSavePill('warn', '⚠️ 비로그인 (클릭하여 이메일 로그인 후 저장)');
+      }
+
+      frame.srcdoc = '';
+      loading.style.display = 'flex';
+      loading.innerText = '게임을 불러오는 중입니다...';
+      document.getElementById('player-modal').classList.add('active');
+
+      try {
+        const htmlCode = await callApi('getGameHtml', { fileId: game.fileId });
+        if (!activeGame || activeGame.id !== game.id) return;
+
+        activeGameRawHtml = htmlCode;
+        loading.style.display = 'none';
+        const initialSave = (userEmail && userSaves[game.id]) ? userSaves[game.id].saveData : {};
+        frame.srcdoc = buildInjectedGameHtml(htmlCode, initialSave);
+
+        if (userEmail) {
+          syncProgressToServer(null, true);
+        }
+      } catch (err) {
+        loading.innerText = '오류: ' + err.message;
+      }
+    }
+
+    function closePlayer() {
+      if (userEmail && activeGame && saveSyncTimer) {
+        clearTimeout(saveSyncTimer);
+        saveSyncTimer = null;
+        syncProgressToServer(latestSavePayload, false);
+      }
+
+      document.getElementById('player-modal').classList.remove('active');
+      const frame = document.getElementById('game-frame');
+      frame.srcdoc = '';
+      frame.removeAttribute('srcdoc');
+      activeGame = null;
+      activeGameRawHtml = '';
+      latestSavePayload = null;
+    }
+
+    function reloadGame() {
+      if (!activeGameRawHtml || !activeGame) return;
+      const frame = document.getElementById('game-frame');
+      const currentSave = userEmail
+        ? (latestSavePayload || (userSaves[activeGame.id] && userSaves[activeGame.id].saveData) || {})
+        : {};
+      frame.srcdoc = '';
+      setTimeout(() => {
+        frame.srcdoc = buildInjectedGameHtml(activeGameRawHtml, currentSave);
+      }, 20);
+    }
+
+    function fullscreenGame() {
+      const frame = document.getElementById('game-frame');
+      if (frame.requestFullscreen) frame.requestFullscreen();
+      else if (frame.webkitRequestFullscreen) frame.webkitRequestFullscreen();
+    }
+
+    // 7. 파일 업로드 처리
+    function handleHtmlFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        uploadedHtmlContent = ev.target.result;
+        document.getElementById('html-file-status').innerText = `✅ 선택됨: ${file.name}`;
+        document.getElementById('html-file-status').style.color = '#4ade80';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function handleThumbFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const size = 320;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+
+          const minSide = Math.min(img.width, img.height);
+          const sx = (img.width - minSide) / 2;
+          const sy = (img.height - minSide) / 2;
+          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+
+          uploadedThumbData = canvas.toDataURL('image/jpeg', 0.75);
+          document.getElementById('f-thumb-url').value = '';
+          const preview = document.getElementById('thumb-preview');
+          preview.src = uploadedThumbData;
+          preview.style.display = 'block';
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function previewThumbUrl(url) {
+      if (!url) return;
+      uploadedThumbData = '';
+      const preview = document.getElementById('thumb-preview');
+      preview.src = url;
+      preview.style.display = 'block';
+    }
+
+    // 8. 등록 및 수정 모달 로직
+    function openFormModal(editId = null, verifiedPwd = '') {
+      const modal = document.getElementById('form-modal');
+      const titleEl = document.getElementById('form-title');
+      const deleteBtn = document.getElementById('btn-delete');
+      const preview = document.getElementById('thumb-preview');
+
+      uploadedHtmlContent = '';
+      uploadedThumbData = '';
+      document.getElementById('f-html-file').value = '';
+      document.getElementById('f-thumb-file').value = '';
+
+      if (editId) {
+        const game = gamesData.find(g => g.id === editId);
+        titleEl.innerText = '게임 정보 수정';
+        document.getElementById('form-id').value = game.id;
+        document.getElementById('verified-pwd').value = verifiedPwd;
+        document.getElementById('f-title').value = game.title;
+        document.getElementById('f-desc').value = game.description;
+        document.getElementById('f-thumb-url').value = game.thumbnail.startsWith('data:') ? '' : game.thumbnail;
+        document.getElementById('f-time').value = game.playTime;
+        document.getElementById('f-players').value = game.players;
+        document.getElementById('f-creator').value = game.creator;
+        document.getElementById('f-password').value = verifiedPwd;
+        document.getElementById('pwd-label').innerText = '비밀번호 (변경 시 새 비밀번호 입력)';
+        document.getElementById('html-file-status').innerText = '기존 HTML 파일 유지됨 (변경하려면 새 파일 선택)';
+        document.getElementById('html-file-status').style.color = '#9ca3af';
+
+        if (game.thumbnail) {
+          preview.src = game.thumbnail;
+          preview.style.display = 'block';
+        } else {
+          preview.style.display = 'none';
+        }
+        deleteBtn.style.display = 'inline-block';
+      } else {
+        titleEl.innerText = '새 게임 추가';
+        document.getElementById('form-id').value = '';
+        document.getElementById('verified-pwd').value = '';
+        document.getElementById('f-title').value = '';
+        document.getElementById('f-desc').value = '';
+        document.getElementById('f-thumb-url').value = '';
+        document.getElementById('f-creator').value = '';
+        document.getElementById('f-password').value = '';
+        document.getElementById('pwd-label').innerText = '게시물 비밀번호 *';
+        document.getElementById('html-file-status').innerText = '.html 파일을 선택해주세요';
+        document.getElementById('html-file-status').style.color = '#9ca3af';
+        preview.style.display = 'none';
+        deleteBtn.style.display = 'none';
+      }
+      modal.classList.add('active');
+    }
+
+    function closeFormModal() {
+      document.getElementById('form-modal').classList.remove('active');
+    }
+
+    async function saveGame() {
+      const id = document.getElementById('form-id').value;
+      const title = document.getElementById('f-title').value.trim();
+      const description = document.getElementById('f-desc').value.trim();
+      const playTime = document.getElementById('f-time').value;
+      const players = document.getElementById('f-players').value;
+      const creator = document.getElementById('f-creator').value.trim();
+      const password = document.getElementById('f-password').value.trim();
+      const thumbUrlInput = document.getElementById('f-thumb-url').value.trim();
+
+      if (!title || !description || !creator || !password) {
+        alert('제목, 설명, 제작자 이름, 비밀번호를 모두 입력해주세요.');
+        return;
+      }
+      if (!id && !uploadedHtmlContent) {
+        alert('게임 HTML 파일을 업로드해주세요.');
+        return;
+      }
+
+      let finalThumb = uploadedThumbData || thumbUrlInput;
+      if (!finalThumb && id) {
+        const existing = gamesData.find(g => g.id === id);
+        finalThumb = existing ? existing.thumbnail : '';
+      }
+
+      const saveBtn = document.getElementById('btn-save');
+      saveBtn.disabled = true;
+      saveBtn.innerText = '저장 중...';
+
+      const payload = {
+        id, title, description, thumbnail: finalThumb,
+        htmlContent: uploadedHtmlContent, playTime, players,
+        creator, password, newPassword: password
+      };
+
+      try {
+        if (id) {
+          const verifiedPwd = document.getElementById('verified-pwd').value;
+          await callApi('updateGame', { payload, password: verifiedPwd });
+        } else {
+          await callApi('addGame', { payload });
+        }
+        closeFormModal();
+        await initApp();
+      } catch (err) {
+        alert('저장 실패: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = '저장하기';
+      }
+    }
+
+    async function handleDelete() {
+      if (!confirm('정말 이 게임을 삭제하시겠습니까?')) return;
+      const id = document.getElementById('form-id').value;
+      const verifiedPwd = document.getElementById('verified-pwd').value;
+
+      try {
+        await callApi('deleteGame', { id, password: verifiedPwd });
+        closeFormModal();
+        await initApp();
+      } catch (err) {
+        alert('삭제 실패: ' + err.message);
+      }
+    }
+
+    // 9. 비밀번호 확인 모달 로직
+    function openPwdModal(id, event) {
+      event.stopPropagation();
+      document.getElementById('pwd-target-id').value = id;
+      document.getElementById('pwd-input').value = '';
+      document.getElementById('pwd-modal').classList.add('active');
+      setTimeout(() => document.getElementById('pwd-input').focus(), 100);
+    }
+
+    function closePwdModal() {
+      document.getElementById('pwd-modal').classList.remove('active');
+    }
+
+    async function checkPassword() {
+      const id = document.getElementById('pwd-target-id').value;
+      const pwd = document.getElementById('pwd-input').value;
+      if (!pwd) return;
+
+      const btn = document.getElementById('btn-pwd-check');
+      btn.disabled = true;
+      btn.innerText = '확인 중...';
+
+      try {
+        const isValid = await callApi('verifyPassword', { id, password: pwd });
+        if (isValid) {
+          closePwdModal();
+          openFormModal(id, pwd);
+        } else {
+          alert('비밀번호가 일치하지 않습니다.');
+          document.getElementById('pwd-input').value = '';
+          document.getElementById('pwd-input').focus();
+        }
+      } catch (err) {
+        alert('오류: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '확인';
+      }
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
