@@ -839,7 +839,8 @@
       <div class="filter-group">
         <button class="filter-btn active" data-time="all">시간 전체</button>
         <button class="filter-btn" data-time="short">5분 미만</button>
-        <button class="filter-btn" data-time="long">5분 이상</button>
+        <button class="filter-btn" data-time="medium">5~10분</button>
+        <button class="filter-btn" data-time="long">10분 이상</button>
       </div>
       <div class="filter-group" id="my-games-filter-wrap" style="display:none;">
         <button class="filter-btn" id="btn-my-games" onclick="toggleMyGamesFilter()">🕒 내가 한 게임</button>
@@ -953,11 +954,9 @@
         <div class="form-group">
           <label>한 판 플레이 시간 *</label>
           <select id="f-time">
-            <option value="⏱️ 3분 내외 (5분 미만)">⏱️ 3분 내외 (5분 미만)</option>
-            <option value="⏱️ 5분 미만 킬링타임">⏱️ 5분 미만 킬링타임</option>
-            <option value="⏱️ 5~10분 (5분 이상)">⏱️ 5~10분 (5분 이상)</option>
-            <option value="⏱️ 10~15분 (5분 이상)">⏱️ 10~15분 (5분 이상)</option>
-            <option value="⏱️ 15분 이상">⏱️ 15분 이상</option>
+            <option value="⏱️ 5분 미만">⏱️ 5분 미만</option>
+            <option value="⏱️ 5~10분">⏱️ 5~10분</option>
+            <option value="⏱️ 10분 이상">⏱️ 10분 이상</option>
           </select>
         </div>
 
@@ -1308,8 +1307,8 @@
 
         let matchTime = true;
         if (currentTimeFilter === 'short') matchTime = g.playTime.includes('미만');
-        if (currentTimeFilter === 'long') matchTime = g.playTime.includes('이상');
-
+        if (currentTimeFilter === 'medium') matchTime = g.playTime.includes('5~10분');
+        if (currentTimeFilter === 'long') matchTime = g.playTime.includes('10분 이상') || g.playTime.includes('10~15분') || g.playTime.includes('15분 이상');
         let matchMine = true;
         if (onlyMyGames && userEmail) {
           matchMine = Boolean(userSaves[g.id] && userSaves[g.id].playCount > 0);
@@ -1790,7 +1789,11 @@
         document.getElementById('f-title').value = game.title;
         document.getElementById('f-desc').value = game.description;
         document.getElementById('f-thumb-url').value = game.thumbnail.startsWith('data:') ? '' : game.thumbnail;
-        document.getElementById('f-time').value = game.playTime;
+        let normalizedTime = game.playTime;
+        if (normalizedTime.includes('미만')) normalizedTime = '⏱️ 5분 미만';
+        else if (normalizedTime.includes('5~10분')) normalizedTime = '⏱️ 5~10분';
+        else if (normalizedTime.includes('10') || normalizedTime.includes('15')) normalizedTime = '⏱️ 10분 이상';
+        document.getElementById('f-time').value = normalizedTime;
         document.getElementById('f-players').value = game.players;
         document.getElementById('f-creator').value = game.creator;
         document.getElementById('f-password').value = verifiedPwd;
