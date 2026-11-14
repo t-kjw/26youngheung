@@ -30,7 +30,8 @@
       color: var(--primary);
       line-height: 1.5;
     }
-/* ===== 컨셉아트 기반 레트로 아케이드 헤더 ===== */
+
+    /* ===== 컨셉아트 기반 레트로 아케이드 헤더 ===== */
     header.arcade-header {
       position: relative;
       padding: 24px 20px 42px;
@@ -203,7 +204,6 @@
       header.arcade-header { padding: 20px 16px 32px; }
     }
 
-
     .controls {
       max-width: 1440px;
       margin: 28px auto;
@@ -289,7 +289,7 @@
     /* 반응형 카드 그리드: PC 6열, 태블릿 4열, 모바일 2열 */
     .grid-container {
       max-width: 1440px;
-      margin: 0 auto 80px;
+      margin: 0 auto 32px;
       padding: 0 24px;
       display: grid;
       grid-template-columns: repeat(6, 1fr);
@@ -302,6 +302,48 @@
 
     @media (max-width: 640px) {
       .grid-container { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    }
+
+    /* ===== 페이지네이션 (18개 단위) ===== */
+    .pagination {
+      max-width: 1440px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      min-width: 38px;
+      height: 38px;
+      padding: 0 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) {
+      border-color: var(--secondary);
+      background: var(--surface-hover);
+    }
+
+    .page-btn.active {
+      background: #fde047;
+      color: #0f172a;
+      border-color: #fde047;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
     }
 
     .empty-state {
@@ -638,6 +680,7 @@
       font-weight: 600;
       cursor: pointer;
     }
+
     /* ===== 모바일 전용: 게임 실행 시 100% 전체화면 ===== */
     @media (max-width: 768px) {
       #player-modal {
@@ -701,7 +744,7 @@
 </head>
 <body>
 
-<header class="arcade-header">
+  <header class="arcade-header">
     <div class="auth-bar" id="auth-bar"></div>
 
     <div class="arcade-hero">
@@ -816,6 +859,8 @@
     <div class="empty-state">게임 목록을 불러오는 중입니다...</div>
   </div>
 
+  <div class="pagination" id="pagination"></div>
+
   <!-- 이메일 로그인 모달 -->
   <div class="modal-overlay" id="login-modal">
     <div class="modal-content" style="max-width: 400px;">
@@ -857,7 +902,8 @@
       </div>
     </div>
   </div>
-<!-- 모바일 뒤로가기 선택 모달 -->
+
+  <!-- 모바일 뒤로가기 선택 모달 -->
   <div class="modal-overlay" id="mobile-choice-modal">
     <div class="modal-content choice-card">
       <h2 style="margin-bottom: 8px;">⏸️ 일시정지</h2>
@@ -871,6 +917,7 @@
       </div>
     </div>
   </div>
+
   <!-- 추가 / 수정 폼 모달 -->
   <div class="modal-overlay" id="form-modal">
     <div class="modal-content">
@@ -984,6 +1031,8 @@
     let currentTimeFilter = 'all';
     let onlyMyGames = false;
     let searchQuery = '';
+    const ITEMS_PER_PAGE = 18;
+    let currentPage = 1;
 
     let uploadedHtmlContent = '';
     let uploadedThumbData = '';
@@ -998,6 +1047,80 @@
         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-family="sans-serif" font-size="24" font-weight="bold">NO THUMBNAIL</text>
       </svg>`
     );
+
+    // ===== 게임 고속 로딩 캐시 & 프리패치 엔진 =====
+    const memHtmlCache = {};
+    const inflightRequests = {};
+    const GAMES_LIST_CACHE_KEY = 'yh_games_list_cache_v1';
+
+    function openHtmlCacheDB() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) return reject('No IndexedDB');
+        const req = indexedDB.open('YHGameArchiveDB', 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('htmlFiles')) {
+            db.createObjectStore('htmlFiles');
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function getCachedHtml(fileId) {
+      if (memHtmlCache[fileId]) return memHtmlCache[fileId];
+      try {
+        const db = await openHtmlCacheDB();
+        return await new Promise((resolve) => {
+          const tx = db.transaction('htmlFiles', 'readonly');
+          const req = tx.objectStore('htmlFiles').get(fileId);
+          req.onsuccess = () => {
+            if (req.result) memHtmlCache[fileId] = req.result;
+            resolve(req.result || null);
+          };
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function setCachedHtml(fileId, html) {
+      memHtmlCache[fileId] = html;
+      try {
+        const db = await openHtmlCacheDB();
+        const tx = db.transaction('htmlFiles', 'readwrite');
+        tx.objectStore('htmlFiles').put(html, fileId);
+      } catch (e) {}
+    }
+
+    async function fetchGameHtmlFast(fileId) {
+      const cached = await getCachedHtml(fileId);
+      if (cached) return cached;
+
+      if (inflightRequests[fileId]) {
+        return inflightRequests[fileId];
+      }
+
+      inflightRequests[fileId] = callApi('getGameHtml', { fileId })
+        .then(async (htmlCode) => {
+          await setCachedHtml(fileId, htmlCode);
+          delete inflightRequests[fileId];
+          return htmlCode;
+        })
+        .catch((err) => {
+          delete inflightRequests[fileId];
+          throw err;
+        });
+
+      return inflightRequests[fileId];
+    }
+
+    function prefetchGameHtml(fileId) {
+      if (!fileId || memHtmlCache[fileId] || inflightRequests[fileId]) return;
+      fetchGameHtmlFast(fileId).catch(() => {});
+    }
 
     // 백엔드 API 호출 공통 함수
     async function callApi(action, params = {}) {
@@ -1092,13 +1215,23 @@
 
     function toggleMyGamesFilter() {
       onlyMyGames = !onlyMyGames;
+      currentPage = 1;
       document.getElementById('btn-my-games').classList.toggle('active', onlyMyGames);
       renderGames();
     }
 
-    // 2. 초기 데이터 로드
+    // 2. 초기 데이터 로드 (캐시 우선 즉시 렌더링 후 백그라운드 최신화)
     async function initApp() {
       renderAuthBar();
+
+      try {
+        const cachedList = JSON.parse(localStorage.getItem(GAMES_LIST_CACHE_KEY) || 'null');
+        if (Array.isArray(cachedList) && cachedList.length > 0) {
+          gamesData = cachedList;
+          renderGames();
+        }
+      } catch (e) {}
+
       try {
         const [games, saves] = await Promise.all([
           callApi('getGames'),
@@ -1106,19 +1239,26 @@
         ]);
         gamesData = games || [];
         userSaves = saves || {};
+        try {
+          localStorage.setItem(GAMES_LIST_CACHE_KEY, JSON.stringify(gamesData));
+        } catch (e) {}
         renderGames();
       } catch (err) {
-        document.getElementById('grid').innerHTML =
-          `<div class="empty-state"><h3>데이터를 불러오지 못했습니다</h3><p>${escapeHtml(err.message)}</p></div>`;
+        if (gamesData.length === 0) {
+          document.getElementById('grid').innerHTML =
+            `<div class="empty-state"><h3>데이터를 불러오지 못했습니다</h3><p>${escapeHtml(err.message)}</p></div>`;
+        }
       }
     }
 
-    // 3. 카드 그리드 렌더링
+    // 3. 카드 그리드 렌더링 (18개 단위 페이지네이션 적용)
     function renderGames() {
       const grid = document.getElementById('grid');
+      const paginationEl = document.getElementById('pagination');
       grid.innerHTML = '';
 
       if (gamesData.length === 0) {
+        paginationEl.innerHTML = '';
         grid.innerHTML = `
           <div class="empty-state">
             <h3>아직 등록된 게임이 없습니다</h3>
@@ -1150,6 +1290,7 @@
       });
 
       if (filtered.length === 0) {
+        paginationEl.innerHTML = '';
         grid.innerHTML = `
           <div class="empty-state">
             <h3>조건에 맞는 게임이 없습니다</h3>
@@ -1158,12 +1299,21 @@
         return;
       }
 
-      filtered.forEach(game => {
+      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const pageItems = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+      pageItems.forEach(game => {
         const card = document.createElement('div');
         card.className = 'card';
         card.onclick = (e) => {
           if (!e.target.classList.contains('edit-btn')) openPlayer(game);
         };
+        card.onmouseenter = () => prefetchGameHtml(game.fileId);
+        card.ontouchstart = () => prefetchGameHtml(game.fileId);
 
         const thumbSrc = game.thumbnail || DEFAULT_THUMB;
         const badgeTime = game.playTime.replace(/\s*\(.*?\)/g, '');
@@ -1190,6 +1340,53 @@
         `;
         grid.appendChild(card);
       });
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      const paginationEl = document.getElementById('pagination');
+      paginationEl.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-btn';
+      prevBtn.innerText = '◀ 이전';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.onclick = () => goToPage(currentPage - 1);
+      paginationEl.appendChild(prevBtn);
+
+      const maxButtons = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+      let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+      if (endPage - startPage + 1 < maxButtons) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+        btn.innerText = i;
+        btn.onclick = () => goToPage(i);
+        paginationEl.appendChild(btn);
+      }
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-btn';
+      nextBtn.innerText = '다음 ▶';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.onclick = () => goToPage(currentPage + 1);
+      paginationEl.appendChild(nextBtn);
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderGames();
+      const controlsEl = document.querySelector('.controls');
+      if (controlsEl) {
+        controlsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function escapeHtml(str) {
@@ -1210,12 +1407,14 @@
           currentTimeFilter = e.target.dataset.time;
         }
         e.target.classList.add('active');
+        currentPage = 1;
         renderGames();
       });
     });
 
     document.getElementById('search-input').addEventListener('input', (e) => {
       searchQuery = e.target.value;
+      currentPage = 1;
       renderGames();
     });
 
@@ -1329,7 +1528,6 @@
       pill.onclick = type === 'warn' ? openLoginModal : null;
     }
 
-    // 6. 인앱 플레이어 실행
     // 6. 인앱 플레이어 실행 (PC: 모달 창 / 모바일: 전체화면 + 뒤로가기 감지)
     let hasGameHistoryState = false;
     let ignoreNextPopState = false;
@@ -1364,7 +1562,7 @@
       }
 
       try {
-        const htmlCode = await callApi('getGameHtml', { fileId: game.fileId });
+        const htmlCode = await fetchGameHtmlFast(game.fileId);
         if (!activeGame || activeGame.id !== game.id) return;
 
         activeGameRawHtml = htmlCode;
