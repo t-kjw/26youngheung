@@ -31,6 +31,10 @@
       line-height: 1.5;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     /* ===== 컨셉아트 기반 레트로 아케이드 헤더 ===== */
     header.arcade-header {
       position: relative;
@@ -505,16 +509,17 @@
       width: fit-content;
     }
 
-    .badge.save-badge {
-      background: rgba(34, 197, 94, 0.14);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
     .badge.plays-badge {
       background: rgba(56, 189, 248, 0.15);
       color: #7dd3fc;
       border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge.rank-badge {
+      background: rgba(250, 204, 21, 0.16);
+      color: #fde047;
+      border: 1px solid rgba(250, 204, 21, 0.38);
+      font-weight: 700;
     }
 
     /* 모달 공통 */
@@ -603,6 +608,7 @@
     .player-controls {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .player-controls button {
@@ -616,6 +622,8 @@
     }
 
     .player-controls button:hover { background: #3f4654; }
+    .btn-pc-rank { background: #ca8a04 !important; color: #0f172a !important; font-weight: 700; }
+    .btn-pc-rank:hover { background: #eab308 !important; }
     .close-btn { background: #dc2626 !important; }
     .close-btn:hover { background: #b91c1c !important; }
 
@@ -728,7 +736,7 @@
       #player-modal .iframe-wrap { border-radius: 0; }
     }
 
-    /* 모바일 뒤로가기 모달 */
+    /* 모바일 뒤로가기 선택 모달 */
     #mobile-choice-modal { z-index: 1200; }
     .choice-card {
       max-width: 340px; text-align: center; border: 2px solid #3b82f6;
@@ -740,8 +748,73 @@
       font-size: 1rem; font-weight: 700; cursor: pointer; border: none;
     }
     .btn-choice-resume { background: #22c55e; color: #052e16; }
+    .btn-choice-rank { background: #38bdf8; color: #082f49; }
     .btn-choice-restart { background: #facc15; color: #0f172a; }
     .btn-choice-close { background: #dc2626; color: #ffffff; }
+
+    /* 랭킹 확인 모달 */
+    #ranking-modal { z-index: 1300; }
+    .ranking-card {
+      max-width: 440px;
+      border: 2px solid #fde047;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.9);
+    }
+    .ranking-my-box {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      font-size: 0.88rem;
+      color: #e0f2fe;
+    }
+    .ranking-my-box.warn {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.4);
+      color: #fde68a;
+    }
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 46vh;
+      overflow-y: auto;
+    }
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      font-size: 0.92rem;
+    }
+    .ranking-row.me {
+      border-color: #fde047;
+      background: rgba(253, 224, 71, 0.1);
+    }
+    .ranking-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ranking-pos {
+      min-width: 28px;
+      font-weight: 800;
+      color: var(--secondary);
+    }
+    .ranking-row.top1 .ranking-pos { color: #fde047; }
+    .ranking-row.top2 .ranking-pos { color: #e2e8f0; }
+    .ranking-row.top3 .ranking-pos { color: #fdba74; }
+    .ranking-name {
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .ranking-score {
+      font-weight: 800;
+      color: #4ade80;
+    }
   </style>
 </head>
 <body>
@@ -864,7 +937,7 @@
     <div class="modal-content" style="max-width: 400px;">
       <h2>📧 이메일 로그인</h2>
       <p style="margin-bottom: 16px; color: var(--secondary); font-size: 0.9rem;">
-        이메일 주소를 입력하면 어떤 게임을 어디까지 플레이했는지 자동으로 저장되고 이어서 할 수 있습니다. (좋아요 기록 연동 포함)
+        이메일 주소를 입력하면 진행도 자동 저장과 점수 경쟁 게임의 랭킹 등록을 이용할 수 있습니다.
       </p>
       <div class="form-group">
         <label>이메일 주소</label>
@@ -889,6 +962,7 @@
           <span class="save-status-pill" id="save-status-pill">상태 확인 중</span>
         </div>
         <div class="player-controls">
+          <button id="btn-pc-ranking" class="btn-pc-rank hidden" onclick="openRankingModal()">🏆 랭킹 확인하기</button>
           <button onclick="reloadGame()">🔄 다시하기</button>
           <button onclick="fullscreenGame()">🔲 전체화면</button>
           <button class="close-btn" onclick="closePlayer()">❌ 닫기</button>
@@ -910,8 +984,23 @@
       </p>
       <div class="choice-buttons">
         <button type="button" class="btn-choice-resume" onclick="mobileResumeGame()">▶ 계속 플레이</button>
+        <button type="button" class="btn-choice-rank hidden" id="btn-mobile-ranking" onclick="openRankingModal()">🏆 랭킹 확인하기</button>
         <button type="button" class="btn-choice-restart" onclick="mobileRestartGame()">🔄 처음부터 다시하기</button>
         <button type="button" class="btn-choice-close" onclick="mobileExitGame()">❌ 게임 닫기 (목록으로)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 랭킹 확인 모달 -->
+  <div class="modal-overlay" id="ranking-modal">
+    <div class="modal-content ranking-card">
+      <h2 id="ranking-modal-title" style="margin-bottom: 12px;">🏆 실시간 랭킹</h2>
+      <div id="ranking-my-info" class="ranking-my-box">랭킹을 불러오는 중...</div>
+      <div id="ranking-list" class="ranking-list"></div>
+      <div class="modal-actions">
+        <div class="modal-actions-right">
+          <button type="button" class="btn-primary" onclick="closeRankingModal()">닫기</button>
+        </div>
       </div>
     </div>
   </div>
@@ -971,6 +1060,14 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label>점수 경쟁 여부 (랭킹 기능) *</label>
+        <select id="f-competitive">
+          <option value="false">🎮 일반 게임 (점수 경쟁 없음)</option>
+          <option value="true">🏆 점수 경쟁 가능 (로그인 사용자 랭킹 등록)</option>
+        </select>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label>제작자 이름 *</label>
@@ -1014,8 +1111,8 @@
   </div>
 
   <script>
-    // ★ [필수 설정] 새 버전으로 배포한 웹 앱 URL
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwheDLjDtqFggK_GxASeWEb5xgWEOXjDJ36rf_35mPSzDYbFXQIKT6HB6kV10FFbTgF/exec'; // <--- 새로 발급받은 URL을 붙여넣으세요!
+    // ★ 구글 앱스 스크립트 웹 앱 URL
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwheDLjDtqFggK_GxASeWEb5xgWEOXjDJ36rf_35mPSzDYbFXQIKT6HB6kV10FFbTgF/exec';
 
     const EMAIL_STORAGE_KEY = 'yh_game_archive_email';
     const LIKES_STORAGE_KEY = 'yh_game_archive_likes';
@@ -1039,6 +1136,11 @@
     let latestSavePayload = null;
     let saveSyncTimer = null;
 
+    // 점수 경쟁용 세션 최고 점수 추적 변수
+    let sessionBestScore = 0;
+    let lastSubmittedScore = 0;
+    let scoreSubmitTimer = null;
+
     const DEFAULT_THUMB = "data:image/svg+xml;utf8," + encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
         <rect width="400" height="400" fill="#1f242d"/>
@@ -1049,7 +1151,7 @@
     // ===== 게임 고속 로딩 캐시 & 프리패치 엔진 =====
     const memHtmlCache = {};
     const inflightRequests = {};
-    const GAMES_LIST_CACHE_KEY = 'yh_games_list_cache_v2';
+    const GAMES_LIST_CACHE_KEY = 'yh_games_list_cache_v3';
 
     function openHtmlCacheDB() {
       return new Promise((resolve, reject) => {
@@ -1114,7 +1216,7 @@
       fetchGameHtmlFast(fileId).catch(() => {});
     }
 
-// 백엔드 API 호출 공통 함수
+    // 백엔드 API 호출 공통 함수
     async function callApi(action, params = {}) {
       const cleanUrl = API_URL.trim();
       const cleanParams = {};
@@ -1126,7 +1228,8 @@
 
       const getActions = [
         'getGames', 'getGameHtml', 'getUserSaves',
-        'verifyPassword', 'toggleLike', 'incrementPlayCount', 'saveUserProgress'
+        'verifyPassword', 'toggleLike', 'incrementPlayCount',
+        'saveUserProgress', 'getRankings', 'submitScore'
       ];
       const query = new URLSearchParams({ action, ...cleanParams }).toString();
 
@@ -1167,7 +1270,7 @@
         myFilterWrap.style.display = 'flex';
       } else {
         bar.innerHTML = `
-          <button class="btn-auth" onclick="openLoginModal()">📧 이메일로 로그인 (진행도 저장)</button>
+          <button class="btn-auth" onclick="openLoginModal()">📧 이메일로 로그인 (저장 & 랭킹)</button>
         `;
         myFilterWrap.style.display = 'none';
         onlyMyGames = false;
@@ -1209,6 +1312,9 @@
         if (activeGame) {
           updatePlayerSavePill('saved', `☁️ ${userEmail}에 자동 저장됨`);
           syncProgressToServer(latestSavePayload || {}, true);
+          if (activeGame.isCompetitive && sessionBestScore > 0) {
+            submitScoreToServer(activeGame.id, sessionBestScore);
+          }
         }
       } catch (err) {
         alert('로그인 오류: ' + err.message);
@@ -1261,18 +1367,18 @@
       event.stopPropagation();
       const currentlyLiked = isGameLiked(gameId);
       const isAdding = !currentlyLiked;
-      
+
       const gameIdx = gamesData.findIndex(g => g.id === String(gameId));
       if (gameIdx > -1) {
         gamesData[gameIdx].likes = Math.max(0, gamesData[gameIdx].likes + (isAdding ? 1 : -1));
         setGameLiked(gameId, isAdding);
-        renderGames(); // 하트 숫자 즉시 반영
+        renderGames();
       }
 
       try {
         await callApi('toggleLike', { id: gameId, isAdding });
       } catch (e) {
-        console.error("좋아요 처리 오류", e);
+        console.error('좋아요 처리 오류', e);
       }
     }
 
@@ -1335,6 +1441,7 @@
         if (currentTimeFilter === 'short') matchTime = g.playTime.includes('미만');
         if (currentTimeFilter === 'medium') matchTime = g.playTime.includes('5~10분');
         if (currentTimeFilter === 'long') matchTime = g.playTime.includes('10분 이상') || g.playTime.includes('10~15분') || g.playTime.includes('15분 이상');
+
         let matchMine = true;
         if (onlyMyGames && userEmail) {
           matchMine = Boolean(userSaves[g.id] && userSaves[g.id].playCount > 0);
@@ -1343,14 +1450,12 @@
         return matchSearch && matchPlayer && matchTime && matchMine;
       });
 
-      // 정렬 처리 (최신순 / 인기순)
       if (currentSort === 'likes') {
         filtered.sort((a, b) => {
           if (b.likes !== a.likes) return b.likes - a.likes;
-          return b.plays - a.plays; // 좋아요 같으면 플레이 순
+          return b.plays - a.plays;
         });
       } else {
-        // 이미 getGames 에서 최신 역순으로 넘어옴
         filtered.sort((a, b) => Number(b.id) - Number(a.id));
       }
 
@@ -1384,7 +1489,7 @@
         const badgeTime = game.playTime.replace(/\s*\(.*?\)/g, '');
         const badgePlayers = game.players.replace(/\s*\(.*?\)/g, '');
         const saveInfo = userEmail ? userSaves[game.id] : null;
-        
+
         let hasSaveData = false;
         if (saveInfo && saveInfo.saveData) {
           const keys = Object.keys(saveInfo.saveData).filter(k => k !== '_liked');
@@ -1396,7 +1501,7 @@
         card.innerHTML = `
           ${saveInfo && saveInfo.playCount > 0 ? `<span class="played-tag">${hasSaveData ? '💾 이어하기' : '▶ 플레이함'}</span>` : ''}
           <button class="edit-btn" onclick="openPwdModal('${game.id}', event)">✏️ 수정</button>
-          
+
           <div class="thumb-wrapper">
             <img src="${thumbSrc}" alt="${escapeHtml(game.title)}" onerror="this.src='${DEFAULT_THUMB}'">
             <button class="like-btn ${liked ? 'liked' : ''}" onclick="toggleLike('${game.id}', event)">
@@ -1409,6 +1514,7 @@
             <div class="badges">
               <div>
                 <span class="badge plays-badge">▶ ${game.plays}회</span>
+                ${game.isCompetitive ? `<span class="badge rank-badge">🏆 랭킹</span>` : ''}
                 <span class="badge">✍️ ${escapeHtml(game.creator)}</span>
               </div>
               <div>
@@ -1512,8 +1618,8 @@
       currentPage = 1;
       renderGames();
     });
-    
-// 5. 게임 내부 localStorage 자동 클라우드 동기화 스크립트 주입
+
+    // 5. 게임 내부 localStorage 동기화 + 점수 자동 추출 스크립트 주입
     function buildInjectedGameHtml(rawHtml, initialSaveObj) {
       const safeJson = JSON.stringify(initialSaveObj || {}).replace(/<\/script>/gi, '<\\/script>');
       const hookScript = `
@@ -1521,19 +1627,94 @@
 (function() {
   const memStore = Object.assign({}, ${safeJson});
   let syncTimer = null;
+  let scoreTimer = null;
+  let maxDetectedScore = 0;
+
+  function reportScore(val) {
+    const num = Number(String(val).replace(/,/g, ''));
+    if (!isFinite(num) || num <= 0 || num > 100000000000) return;
+    if (num > maxDetectedScore) {
+      maxDetectedScore = num;
+      clearTimeout(scoreTimer);
+      scoreTimer = setTimeout(function() {
+        try {
+          window.parent.postMessage({ type: 'ARCHIVE_GAME_SCORE', score: maxDetectedScore }, '*');
+        } catch (e) {}
+      }, 300);
+    }
+  }
+
+  function extractScoreFromKeyValue(k, v) {
+    const keyStr = String(k || '');
+    const valStr = String(v || '');
+    if (/score|point|best|high|점수|기록/i.test(keyStr)) {
+      const m = valStr.match(/(\\d[\\d,]*)/);
+      if (m) reportScore(m[1]);
+    }
+    if (valStr.startsWith('{') && valStr.endsWith('}')) {
+      try {
+        const obj = JSON.parse(valStr);
+        for (const prop in obj) {
+          if (/score|point|best|high|점수|기록/i.test(prop)) {
+            reportScore(obj[prop]);
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  function extractScoreFromText(text) {
+    const str = String(text || '');
+    const m = str.match(/(?:score|high\\s*score|best\\s*score|점수|최고점수|최종\\s*점수)\\s*[:：=]?\\s*(\\d[\\d,]*)/i);
+    if (m) reportScore(m[1]);
+  }
+
   function sendNow() {
     clearTimeout(syncTimer);
     syncTimer = null;
     try {
       window.parent.postMessage({ type: 'ARCHIVE_GAME_SAVE', saveData: Object.assign({}, memStore) }, '*');
+      if (maxDetectedScore > 0) {
+        window.parent.postMessage({ type: 'ARCHIVE_GAME_SCORE', score: maxDetectedScore }, '*');
+      }
     } catch (e) {}
   }
+
   function notifyParent() {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(sendNow, 200);
   }
+
   window.addEventListener('pagehide', sendNow);
   window.addEventListener('beforeunload', sendNow);
+
+  // 게임 제작자가 직접 점수를 보내는 경우 수신
+  window.addEventListener('message', function(ev) {
+    if (ev.data && (ev.data.type === 'ARCHIVE_SCORE' || ev.data.type === 'SCORE_UPDATE')) {
+      reportScore(ev.data.score);
+    }
+  });
+
+  // Canvas 텍스트 렌더링에서 점수 추출
+  try {
+    const origFillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function(text) {
+      extractScoreFromText(text);
+      return origFillText.apply(this, arguments);
+    };
+  } catch (e) {}
+
+  // DOM 요소 텍스트에서 점수 추출
+  setInterval(function() {
+    try {
+      const nodes = document.querySelectorAll('div, span, p, h1, h2, h3, strong, b');
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].children.length === 0 && nodes[i].textContent) {
+          extractScoreFromText(nodes[i].textContent);
+        }
+      }
+    } catch (e) {}
+  }, 1000);
 
   const customStorage = {
     getItem: function(k) {
@@ -1541,6 +1722,7 @@
     },
     setItem: function(k, v) {
       memStore[String(k)] = String(v);
+      extractScoreFromKeyValue(k, v);
       notifyParent();
     },
     removeItem: function(k) {
@@ -1586,21 +1768,56 @@
     }
 
     window.addEventListener('message', (event) => {
-      if (!event.data || event.data.type !== 'ARCHIVE_GAME_SAVE' || !activeGame) return;
-      latestSavePayload = event.data.saveData;
+      if (!event.data || !activeGame) return;
 
-      if (!userEmail) return;
+      // 1) localStorage 진행도 저장 수신
+      if (event.data.type === 'ARCHIVE_GAME_SAVE') {
+        latestSavePayload = event.data.saveData;
+        if (!userEmail) return;
 
-      // 현재 화면 메모리에도 즉시 반영
-      if (!userSaves[activeGame.id]) userSaves[activeGame.id] = { playCount: 1, lastPlayed: '', saveData: {} };
-      userSaves[activeGame.id].saveData = Object.assign({}, latestSavePayload);
+        if (!userSaves[activeGame.id]) userSaves[activeGame.id] = { playCount: 1, lastPlayed: '', saveData: {} };
+        userSaves[activeGame.id].saveData = Object.assign({}, latestSavePayload);
 
-      updatePlayerSavePill('saving', '⏳ 진행도 저장 중...');
-      clearTimeout(saveSyncTimer);
-      saveSyncTimer = setTimeout(() => {
-        syncProgressToServer(latestSavePayload, false);
-      }, 400);
+        updatePlayerSavePill('saving', '⏳ 진행도 저장 중...');
+        clearTimeout(saveSyncTimer);
+        saveSyncTimer = setTimeout(() => {
+          syncProgressToServer(latestSavePayload, false);
+        }, 400);
+      }
+
+      // 2) 점수 경쟁 게임 점수 수신 (로그인한 경우만 서버 등록)
+      if (event.data.type === 'ARCHIVE_GAME_SCORE') {
+        const incoming = Number(event.data.score) || 0;
+        if (incoming > sessionBestScore) {
+          sessionBestScore = incoming;
+        }
+        if (activeGame.isCompetitive && userEmail && sessionBestScore > lastSubmittedScore) {
+          clearTimeout(scoreSubmitTimer);
+          scoreSubmitTimer = setTimeout(() => {
+            submitScoreToServer(activeGame.id, sessionBestScore);
+          }, 1200);
+        }
+      }
     });
+
+    async function submitScoreToServer(gameId, scoreVal) {
+      if (!userEmail || !gameId || scoreVal <= 0) return;
+      try {
+        const res = await callApi('submitScore', {
+          email: userEmail,
+          gameId: gameId,
+          score: scoreVal
+        });
+        if (res && res.success) {
+          lastSubmittedScore = Math.max(lastSubmittedScore, scoreVal);
+          if (res.updated && activeGame && activeGame.id === gameId) {
+            updatePlayerSavePill('saved', `🏆 최고 기록 갱신 (${scoreVal.toLocaleString()}점)`);
+          }
+        }
+      } catch (e) {
+        console.error('랭킹 점수 등록 오류:', e);
+      }
+    }
 
     async function syncProgressToServer(saveObj, isNewSession, targetGameId = null) {
       const gId = targetGameId || (activeGame ? activeGame.id : null);
@@ -1632,7 +1849,7 @@
         }
       }
     }
-    
+
     function updatePlayerSavePill(type, text) {
       const pill = document.getElementById('save-status-pill');
       pill.className = 'save-status-pill ' + (type === 'saved' ? 'saved' : type === 'warn' ? 'warn' : '');
@@ -1650,16 +1867,25 @@
 
     async function openPlayer(game) {
       activeGame = game;
+      sessionBestScore = 0;
+      lastSubmittedScore = 0;
       latestSavePayload = (userEmail && userSaves[game.id]) ? Object.assign({}, userSaves[game.id].saveData) : {};
 
       const frame = document.getElementById('game-frame');
       const loading = document.getElementById('player-loading');
 
       document.getElementById('player-title').innerText = game.title;
+
+      // 점수 경쟁 게임일 때만 PC 및 모바일 일시정지 화면에 랭킹 버튼 표시
+      document.getElementById('btn-pc-ranking').classList.toggle('hidden', !game.isCompetitive);
+      document.getElementById('btn-mobile-ranking').classList.toggle('hidden', !game.isCompetitive);
+
       if (userEmail) {
         updatePlayerSavePill('saved', `☁️ ${userEmail}에 자동 저장됨`);
       } else {
-        updatePlayerSavePill('warn', '⚠️ 비로그인 (클릭하여 이메일 로그인 후 저장)');
+        updatePlayerSavePill('warn', game.isCompetitive
+          ? '⚠️ 비로그인 (로그인해야 랭킹 등록 가능)'
+          : '⚠️ 비로그인 (클릭하여 이메일 로그인 후 저장)');
       }
 
       frame.srcdoc = '';
@@ -1671,14 +1897,13 @@
         history.pushState({ inGame: true }, '', '#play');
         hasGameHistoryState = true;
       }
-      
-      // 전체 플레이 수 서버 증가
+
       callApi('incrementPlayCount', { id: game.id }).then(res => {
-         if (res && res.success) {
-           const idx = gamesData.findIndex(g => g.id === String(game.id));
-           if(idx > -1) gamesData[idx].plays = res.plays;
-         }
-      }).catch(()=>{});
+        if (res && res.success) {
+          const idx = gamesData.findIndex(g => g.id === String(game.id));
+          if (idx > -1) gamesData[idx].plays = res.plays;
+        }
+      }).catch(() => {});
 
       try {
         const htmlCode = await fetchGameHtmlFast(game.fileId);
@@ -1693,6 +1918,77 @@
       } catch (err) {
         loading.innerText = '오류: ' + err.message;
       }
+    }
+
+    // 랭킹 확인 모달 열기
+    async function openRankingModal() {
+      if (!activeGame) return;
+      const modal = document.getElementById('ranking-modal');
+      const titleEl = document.getElementById('ranking-modal-title');
+      const myInfoEl = document.getElementById('ranking-my-info');
+      const listEl = document.getElementById('ranking-list');
+
+      titleEl.innerText = `🏆 ${activeGame.title} 랭킹`;
+      listEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--secondary);">순위를 불러오는 중...</div>';
+
+      if (userEmail) {
+        const myShortId = userEmail.split('@')[0].slice(0, 5);
+        myInfoEl.className = 'ranking-my-box';
+        myInfoEl.innerText = `내 계정(${escapeHtml(myShortId)})의 기록을 확인 중입니다...`;
+      } else {
+        myInfoEl.className = 'ranking-my-box warn';
+        myInfoEl.innerHTML = '⚠️ <b>비로그인 상태</b>입니다. 랭킹 조회만 가능하며, <b>이메일 로그인</b>을 해야 점수가 등록됩니다.';
+      }
+
+      modal.classList.add('active');
+
+      // 아직 서버로 전송되지 않은 현재 판 점수가 있으면 먼저 등록 후 조회
+      if (userEmail && sessionBestScore > lastSubmittedScore) {
+        clearTimeout(scoreSubmitTimer);
+        await submitScoreToServer(activeGame.id, sessionBestScore);
+      }
+
+      try {
+        const res = await callApi('getRankings', {
+          gameId: activeGame.id,
+          email: userEmail || ''
+        });
+
+        if (userEmail) {
+          const myShortId = userEmail.split('@')[0].slice(0, 5);
+          if (res.myRecord) {
+            myInfoEl.innerHTML = `👤 <b>${escapeHtml(myShortId)}</b> · 최고 기록: <b>${res.myRecord.score.toLocaleString()}점</b> (전체 ${res.totalPlayers}명 중 <b>${res.myRecord.rank}위</b>)`;
+          } else {
+            myInfoEl.innerHTML = `👤 <b>${escapeHtml(myShortId)}</b> · 아직 등록된 점수가 없습니다. 점수를 획득하면 자동 등록됩니다!`;
+          }
+        }
+
+        if (!res.top10 || res.top10.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center; padding:28px; color:var(--secondary);">아직 등록된 랭킹 기록이 없습니다.<br>첫 번째 1위의 주인공이 되어보세요!</div>';
+          return;
+        }
+
+        listEl.innerHTML = res.top10.map(item => {
+          const medal = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `${item.rank}위`;
+          const topCls = item.rank <= 3 ? `top${item.rank}` : '';
+          const meCls = item.isMe ? 'me' : '';
+          return `
+            <div class="ranking-row ${topCls} ${meCls}">
+              <div class="ranking-left">
+                <span class="ranking-pos">${medal}</span>
+                <span class="ranking-name">${escapeHtml(item.name)}${item.isMe ? ' (나)' : ''}</span>
+              </div>
+              <span class="ranking-score">${item.score.toLocaleString()}점</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#f87171;">랭킹 조회 실패: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function closeRankingModal() {
+      document.getElementById('ranking-modal').classList.remove('active');
     }
 
     window.addEventListener('popstate', () => {
@@ -1731,6 +2027,13 @@
         saveSyncTimer = null;
         syncProgressToServer(latestSavePayload, false);
       }
+      if (userEmail && activeGame && activeGame.isCompetitive && sessionBestScore > lastSubmittedScore) {
+        clearTimeout(scoreSubmitTimer);
+        scoreSubmitTimer = null;
+        submitScoreToServer(activeGame.id, sessionBestScore);
+      }
+
+      document.getElementById('ranking-modal').classList.remove('active');
       document.getElementById('mobile-choice-modal').classList.remove('active');
       document.getElementById('player-modal').classList.remove('active');
       const frame = document.getElementById('game-frame');
@@ -1739,13 +2042,15 @@
       activeGame = null;
       activeGameRawHtml = '';
       latestSavePayload = null;
+      sessionBestScore = 0;
+      lastSubmittedScore = 0;
 
       if (hasGameHistoryState) {
         hasGameHistoryState = false;
         ignoreNextPopState = true;
         history.back();
       }
-      renderGames(); // 플레이 횟수 갱신 등 반영
+      renderGames();
     }
 
     function reloadGame() {
@@ -1832,19 +2137,22 @@
         document.getElementById('f-title').value = game.title;
         document.getElementById('f-desc').value = game.description;
         document.getElementById('f-thumb-url').value = game.thumbnail.startsWith('data:') ? '' : game.thumbnail;
+
         let normalizedTime = game.playTime;
         if (normalizedTime.includes('미만')) normalizedTime = '⏱️ 5분 미만';
         else if (normalizedTime.includes('5~10분')) normalizedTime = '⏱️ 5~10분';
         else if (normalizedTime.includes('10') || normalizedTime.includes('15')) normalizedTime = '⏱️ 10분 이상';
         document.getElementById('f-time').value = normalizedTime;
+
         document.getElementById('f-players').value = game.players;
+        document.getElementById('f-competitive').value = game.isCompetitive ? 'true' : 'false';
         document.getElementById('f-creator').value = game.creator;
         document.getElementById('f-password').value = verifiedPwd;
         document.getElementById('pwd-label').innerText = '비밀번호 (변경 시 새 비밀번호 입력)';
         document.getElementById('html-file-status').innerText = '기존 HTML 파일 유지됨 (변경하려면 새 파일 선택)';
         document.getElementById('html-file-status').style.color = '#9ca3af';
 
-        if (game.thumbnail) { preview.src = game.thumbnail; preview.style.display = 'block'; } 
+        if (game.thumbnail) { preview.src = game.thumbnail; preview.style.display = 'block'; }
         else { preview.style.display = 'none'; }
         deleteBtn.style.display = 'inline-block';
       } else {
@@ -1854,6 +2162,7 @@
         document.getElementById('f-title').value = '';
         document.getElementById('f-desc').value = '';
         document.getElementById('f-thumb-url').value = '';
+        document.getElementById('f-competitive').value = 'false';
         document.getElementById('f-creator').value = '';
         document.getElementById('f-password').value = '';
         document.getElementById('pwd-label').innerText = '게시물 비밀번호 (또는 마스터키) *';
@@ -1873,6 +2182,7 @@
       const description = document.getElementById('f-desc').value.trim();
       const playTime = document.getElementById('f-time').value;
       const players = document.getElementById('f-players').value;
+      const isCompetitive = document.getElementById('f-competitive').value === 'true';
       const creator = document.getElementById('f-creator').value.trim();
       const password = document.getElementById('f-password').value.trim();
       const thumbUrlInput = document.getElementById('f-thumb-url').value.trim();
@@ -1897,7 +2207,7 @@
       const payload = {
         id, title, description, thumbnail: finalThumb,
         htmlContent: uploadedHtmlContent, playTime, players,
-        creator, password, newPassword: password
+        isCompetitive, creator, password, newPassword: password
       };
 
       try {
