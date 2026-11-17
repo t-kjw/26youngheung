@@ -1114,11 +1114,37 @@
       fetchGameHtmlFast(fileId).catch(() => {});
     }
 
-    // 백엔드 API 호출 공통 함수
+// 백엔드 API 호출 공통 함수
     async function callApi(action, params = {}) {
-      const res = await fetch(API_URL, {
+      const cleanUrl = API_URL.trim();
+      const cleanParams = {};
+      for (const k in params) {
+        if (params[k] !== null && params[k] !== undefined) {
+          cleanParams[k] = params[k];
+        }
+      }
+
+      const getActions = [
+        'getGames', 'getGameHtml', 'getUserSaves',
+        'verifyPassword', 'toggleLike', 'incrementPlayCount', 'saveUserProgress'
+      ];
+      const query = new URLSearchParams({ action, ...cleanParams }).toString();
+
+      if (getActions.includes(action) && query.length < 1800) {
+        const res = await fetch(`${cleanUrl}?${query}`, {
+          method: 'GET',
+          redirect: 'follow'
+        });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        return json.data;
+      }
+
+      const res = await fetch(cleanUrl, {
         method: 'POST',
-        body: JSON.stringify({ action, ...params })
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, ...cleanParams })
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
@@ -1486,8 +1512,8 @@
       currentPage = 1;
       renderGames();
     });
-
-    // 5. 게임 내부 localStorage 자동 클라우드 동기화 스크립트 주입
+    
+// 5. 게임 내부 localStorage 자동 클라우드 동기화 스크립트 주입
     function buildInjectedGameHtml(rawHtml, initialSaveObj) {
       const safeJson = JSON.stringify(initialSaveObj || {}).replace(/<\/script>/gi, '<\\/script>');
       const hookScript = `
@@ -1495,51 +1521,61 @@
 (function() {
   const memStore = Object.assign({}, ${safeJson});
   let syncTimer = null;
+  function sendNow() {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    try {
+      window.parent.postMessage({ type: 'ARCHIVE_GAME_SAVE', saveData: Object.assign({}, memStore) }, '*');
+    } catch (e) {}
+  }
   function notifyParent() {
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(function() {
-      try {
-        window.parent.postMessage({ type: 'ARCHIVE_GAME_SAVE', saveData: Object.assign({}, memStore) }, '*');
-      } catch (e) {}
-    }, 600);
+    syncTimer = setTimeout(sendNow, 200);
   }
-  try {
-    const origGet = Storage.prototype.getItem;
-    const origSet = Storage.prototype.setItem;
-    const origRemove = Storage.prototype.removeItem;
-    const origClear = Storage.prototype.clear;
+  window.addEventListener('pagehide', sendNow);
+  window.addEventListener('beforeunload', sendNow);
 
-    Storage.prototype.getItem = function(k) {
-      if (this === window.localStorage) {
-        return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null;
+  const customStorage = {
+    getItem: function(k) {
+      return Object.prototype.hasOwnProperty.call(memStore, String(k)) ? memStore[String(k)] : null;
+    },
+    setItem: function(k, v) {
+      memStore[String(k)] = String(v);
+      notifyParent();
+    },
+    removeItem: function(k) {
+      delete memStore[String(k)];
+      notifyParent();
+    },
+    clear: function() {
+      for (const k in memStore) {
+        if (k !== '_liked') delete memStore[k];
       }
-      return origGet.apply(this, arguments);
-    };
-    Storage.prototype.setItem = function(k, v) {
-      if (this === window.localStorage) {
-        memStore[String(k)] = String(v);
-        notifyParent();
-        return;
-      }
-      return origSet.apply(this, arguments);
-    };
-    Storage.prototype.removeItem = function(k) {
-      if (this === window.localStorage) {
-        delete memStore[String(k)];
-        notifyParent();
-        return;
-      }
-      return origRemove.apply(this, arguments);
-    };
-    Storage.prototype.clear = function() {
-      if (this === window.localStorage) {
-        for (const k in memStore) if(k !== '_liked') delete memStore[k];
-        notifyParent();
-        return;
-      }
-      return origClear.apply(this, arguments);
-    };
-  } catch (err) {}
+      notifyParent();
+    },
+    key: function(i) {
+      const keys = Object.keys(memStore).filter(k => k !== '_liked');
+      return keys[i] !== undefined ? keys[i] : null;
+    },
+    get length() {
+      return Object.keys(memStore).filter(k => k !== '_liked').length;
+    }
+  };
+
+  try {
+    Object.defineProperty(window, 'localStorage', {
+      value: customStorage,
+      configurable: true,
+      writable: false
+    });
+  } catch (e) {
+    try {
+      Storage.prototype.getItem = function(k) { return customStorage.getItem(k); };
+      Storage.prototype.setItem = function(k, v) { return customStorage.setItem(k, v); };
+      Storage.prototype.removeItem = function(k) { return customStorage.removeItem(k); };
+      Storage.prototype.clear = function() { return customStorage.clear(); };
+    } catch (err) {}
+  }
 })();
 <\/script>`;
 
@@ -1555,11 +1591,15 @@
 
       if (!userEmail) return;
 
+      // 현재 화면 메모리에도 즉시 반영
+      if (!userSaves[activeGame.id]) userSaves[activeGame.id] = { playCount: 1, lastPlayed: '', saveData: {} };
+      userSaves[activeGame.id].saveData = Object.assign({}, latestSavePayload);
+
       updatePlayerSavePill('saving', '⏳ 진행도 저장 중...');
       clearTimeout(saveSyncTimer);
       saveSyncTimer = setTimeout(() => {
         syncProgressToServer(latestSavePayload, false);
-      }, 1000);
+      }, 400);
     });
 
     async function syncProgressToServer(saveObj, isNewSession, targetGameId = null) {
@@ -1581,15 +1621,18 @@
           if (saveObj) userSaves[gId].saveData = saveObj;
 
           if (activeGame && activeGame.id === gId) {
-            updatePlayerSavePill('saved', `☁️ ${userEmail}에 저장됨`);
+            updatePlayerSavePill('saved', `☁️ ${userEmail}에 저장 완료`);
           }
           if (isNewSession) renderGames();
         }
       } catch (e) {
         console.error('진행도 저장 오류:', e);
+        if (activeGame && activeGame.id === gId) {
+          updatePlayerSavePill('warn', '⚠️ 저장 실패 (네트워크 확인)');
+        }
       }
     }
-
+    
     function updatePlayerSavePill(type, text) {
       const pill = document.getElementById('save-status-pill');
       pill.className = 'save-status-pill ' + (type === 'saved' ? 'saved' : type === 'warn' ? 'warn' : '');
